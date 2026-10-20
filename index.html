@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Interaktif Sederhana</title>
+    <title>Tickle Game Sederhana</title>
     <style>
         body {
             display: flex;
@@ -14,122 +14,218 @@
             margin: 0;
             font-family: sans-serif;
             color: white;
+            overflow: hidden;
         }
+        
+        /* Layar Mulai untuk memicu Audio */
+        #start-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        #start-btn {
+            padding: 15px 30px;
+            font-size: 20px;
+            cursor: pointer;
+            background: #ff6b81;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
         #game-container {
             position: relative;
-            /* Sesuaikan lebar ini dengan ukuran asli gambarmu */
-            width: 800px; 
+            width: 600px; /* Lebar maksimal game */
             max-width: 100%;
+            display: none; /* Disembunyikan sebelum klik mulai */
         }
         #character-img {
             width: 100%;
             display: block;
-            pointer-events: none; /* Mencegah gambar ikut terseret kursor */
+            pointer-events: none; /* Mencegah drag gambar */
         }
-        /* Ini adalah area 'Hitbox' tak kasat mata di bagian perut */
-        #hitbox-belly {
+
+        /* --- PENGATURAN HITBOX --- */
+        /* Ubah background ke warna solid (misal: rgba(255,0,0,0.5)) jika ingin melihat posisi pastinya saat mengedit */
+        .hitbox {
             position: absolute;
-            top: 70%;  /* Posisi vertikal perut (sesuaikan jika kurang pas) */
-            left: 50%; /* Posisi horizontal perut */
-            width: 15%; /* Lebar area sentuh */
-            height: 15%; /* Tinggi area sentuh */
-            transform: translate(-50%, -50%);
             cursor: pointer;
             z-index: 10;
-            
-            /* Hapus tanda komentar di bawah ini untuk melihat area hitbox saat menguji coba */
-            /* border: 2px solid red; background: rgba(255,0,0,0.3); */
+            /* Hapus komentar di bawah ini untuk mode debug (melihat kotak area) */
+            /* border: 2px dashed red; background: rgba(255, 0, 0, 0.3); */
         }
+
+        /* Posisi Ketiak Kiri Karakter (Kanan Atas Gambar) */
+        #hitbox-armpit {
+            top: 25%;
+            left: 65%;
+            width: 15%;
+            height: 12%;
+            border-radius: 50%;
+        }
+
+        /* Posisi Perut */
+        #hitbox-belly {
+            top: 50%;
+            left: 45%;
+            width: 18%;
+            height: 15%;
+            border-radius: 50%;
+        }
+
+        /* Posisi Telapak Kaki (Kiri Bawah) */
+        #hitbox-feet {
+            top: 80%;
+            left: 10%;
+            width: 18%;
+            height: 15%;
+            transform: rotate(-30deg);
+        }
+
         #ui-panel {
             position: absolute;
             top: 20px;
             left: 20px;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             padding: 15px;
             border-radius: 8px;
-            border: 1px solid #444;
+            border: 1px solid #ff6b81;
+            z-index: 20;
         }
         progress {
             width: 100%;
-            height: 20px;
+            height: 15px;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
 
+<!-- Layar Mulai -->
+<div id="start-screen">
+    <h2>Siap Bermain?</h2>
+    <p>Gunakan kursor atau usap layar di area sensitif!</p>
+    <button id="start-btn">Mulai Game</button>
+</div>
+
 <div id="game-container">
     <!-- UI Status -->
     <div id="ui-panel">
-        <div>Status: <span id="status-text">Bertahan</span></div>
-        <div style="margin-top: 10px; font-size: 14px;">Intensitas Gelitik:</div>
+        <div>Target: <span id="status-text" style="color: #4cd137;">Aman</span></div>
+        <div style="margin-top: 10px; font-size: 12px;">Intensitas:</div>
         <progress id="tickle-meter" value="0" max="100"></progress>
     </div>
 
-    <!-- Gambar Karakter Utama -->
-    <img id="character-img" src="tickle.webp" alt="Character">
+    <!-- Gambar Utama -->
+    <img id="character-img" src="Base.jpeg" alt="Character">
 
-    <!-- Area Interaksi (Hitbox) -->
-    <div id="hitbox-belly"></div>
+    <!-- Area Hitbox -->
+    <div class="hitbox" id="hitbox-armpit" data-part="armpit"></div>
+    <div class="hitbox" id="hitbox-belly" data-part="belly"></div>
+    <div class="hitbox" id="hitbox-feet" data-part="feet"></div>
 </div>
 
+<!-- Elemen Audio (Pastikan file ini ada di folder yang sama) -->
+<audio id="bgm" src="bgm.mp3" loop></audio>
+<audio id="sfx-laugh" src="laugh.mp3"></audio>
+
 <script>
-    // Referensi elemen dari HTML
+    const startScreen = document.getElementById('start-screen');
+    const startBtn = document.getElementById('start-btn');
+    const gameContainer = document.getElementById('game-container');
     const imgElement = document.getElementById('character-img');
-    const hitbox = document.getElementById('hitbox-belly');
     const tickleMeter = document.getElementById('tickle-meter');
     const statusText = document.getElementById('status-text');
+    const hitboxes = document.querySelectorAll('.hitbox');
+    
+    // Audio Elements
+    const bgm = document.getElementById('bgm');
+    const sfxLaugh = document.getElementById('sfx-laugh');
 
-    // Nama file gambar (sesuai yang kamu berikan)
-    const imgNormal = 'tickle.webp';
-    const imgTickled = 'tickle1.webp';
+    // Aset Gambar
+    const imgNormal = 'Base.jpeg';
+    const images = {
+        armpit: 'Ticklearmpit.png',
+        belly: 'Ticklebelly.png',
+        feet: 'Tickefeet.png'
+    };
 
-    // Variabel logika permainan
     let intensity = 0;
     const maxIntensity = 100;
-    const threshold = 60; // Titik di mana karakter mulai bereaksi
-    let isReacting = false;
+    const threshold = 50; 
+    let activePart = null; // Menyimpan bagian tubuh mana yang sedang digelitik
 
-    // Mendeteksi gerakan mouse/usapan di atas hitbox perut
-    hitbox.addEventListener('mousemove', () => {
-        intensity += 4; // Intensitas naik setiap mouse bergerak
-        if (intensity > maxIntensity) intensity = maxIntensity;
-        updateGame();
+    // Memulai game dan memainkan BGM
+    startBtn.addEventListener('click', () => {
+        startScreen.style.display = 'none';
+        gameContainer.style.display = 'block';
+        
+        // Memutar background music dengan volume pelan
+        bgm.volume = 0.3;
+        bgm.play().catch(e => console.log("Audio diblokir browser", e));
     });
 
-    // Mendeteksi sentuhan untuk layar HP (Touchscreen)
-    hitbox.addEventListener('touchmove', (e) => {
-        e.preventDefault(); // Mencegah layar ikut ter-scroll
-        intensity += 4;
+    // Fungsi untuk menambah intensitas
+    function applyTickle(part) {
+        intensity += 6; // Kecepatan naiknya meteran
         if (intensity > maxIntensity) intensity = maxIntensity;
+        activePart = part;
         updateGame();
+    }
+
+    // Mendaftarkan event listener untuk semua hitbox
+    hitboxes.forEach(box => {
+        const partName = box.getAttribute('data-part');
+
+        box.addEventListener('mousemove', () => applyTickle(partName));
+        
+        box.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            applyTickle(partName);
+        });
     });
 
-    // Sistem "Cooldown" - Intensitas akan turun pelan-pelan jika dibiarkan
+    // Cooldown - Meteran turun jika tidak digelitik
     setInterval(() => {
         if (intensity > 0) {
-            intensity -= 2;
+            intensity -= 3; // Kecepatan turunnya meteran
             if (intensity < 0) intensity = 0;
             updateGame();
         }
     }, 100);
 
-    // Fungsi utama untuk memperbarui tampilan
+    // Fungsi update logika permainan
     function updateGame() {
         tickleMeter.value = intensity;
 
-        // Jika intensitas melewati ambang batas (Threshold)
-        if (intensity >= threshold && !isReacting) {
-            imgElement.src = imgTickled; // Ganti ke gambar bereaksi
-            statusText.innerText = "Tidak Kuat (Tertawa)!";
-            statusText.style.color = "#ff4444";
-            isReacting = true;
+        // Jika melewati batas dan gambar belum berubah
+        if (intensity >= threshold && imgElement.src.indexOf(images[activePart]) === -1) {
+            // Ubah gambar sesuai dengan bagian yang disentuh
+            imgElement.src = images[activePart];
+            statusText.innerText = "Kegelian (" + activePart + ")!";
+            statusText.style.color = "#ff6b81";
+            
+            // Mainkan suara tertawa jika sedang tidak dimainkan
+            if (sfxLaugh.paused) {
+                sfxLaugh.volume = 0.8;
+                sfxLaugh.currentTime = 0;
+                sfxLaugh.play();
+            }
         } 
-        // Jika intensitas turun lagi ke kondisi aman
-        else if (intensity < threshold && isReacting) {
-            imgElement.src = imgNormal; // Kembali ke gambar normal
-            statusText.innerText = "Bertahan";
-            statusText.style.color = "white";
-            isReacting = false;
+        // Kembali normal jika intensitas turun di bawah threshold
+        else if (intensity < threshold && imgElement.src.indexOf(imgNormal) === -1) {
+            imgElement.src = imgNormal;
+            statusText.innerText = "Aman";
+            statusText.style.color = "#4cd137";
+            
+            // Hentikan suara tertawa (opsional)
+            sfxLaugh.pause();
         }
     }
 </script>
