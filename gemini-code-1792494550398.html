@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Interaktif Sederhana</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #111;
+            margin: 0;
+            font-family: sans-serif;
+            color: white;
+        }
+        #game-container {
+            position: relative;
+            /* Sesuaikan lebar ini dengan ukuran asli gambarmu */
+            width: 800px; 
+            max-width: 100%;
+        }
+        #character-img {
+            width: 100%;
+            display: block;
+            pointer-events: none; /* Mencegah gambar ikut terseret kursor */
+        }
+        /* Ini adalah area 'Hitbox' tak kasat mata di bagian perut */
+        #hitbox-belly {
+            position: absolute;
+            top: 70%;  /* Posisi vertikal perut (sesuaikan jika kurang pas) */
+            left: 50%; /* Posisi horizontal perut */
+            width: 15%; /* Lebar area sentuh */
+            height: 15%; /* Tinggi area sentuh */
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            z-index: 10;
+            
+            /* Hapus tanda komentar di bawah ini untuk melihat area hitbox saat menguji coba */
+            /* border: 2px solid red; background: rgba(255,0,0,0.3); */
+        }
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        progress {
+            width: 100%;
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- UI Status -->
+    <div id="ui-panel">
+        <div>Status: <span id="status-text">Bertahan</span></div>
+        <div style="margin-top: 10px; font-size: 14px;">Intensitas Gelitik:</div>
+        <progress id="tickle-meter" value="0" max="100"></progress>
+    </div>
+
+    <!-- Gambar Karakter Utama -->
+    <img id="character-img" src="1000052380_d4bcc7.webp" alt="Character">
+
+    <!-- Area Interaksi (Hitbox) -->
+    <div id="hitbox-belly"></div>
+</div>
+
+<script>
+    // Referensi elemen dari HTML
+    const imgElement = document.getElementById('character-img');
+    const hitbox = document.getElementById('hitbox-belly');
+    const tickleMeter = document.getElementById('tickle-meter');
+    const statusText = document.getElementById('status-text');
+
+    // Nama file gambar (sesuai yang kamu berikan)
+    const imgNormal = '1000052380_d4bcc7.webp';
+    const imgTickled = '1000052381_d4bcc7.webp';
+
+    // Variabel logika permainan
+    let intensity = 0;
+    const maxIntensity = 100;
+    const threshold = 60; // Titik di mana karakter mulai bereaksi
+    let isReacting = false;
+
+    // Mendeteksi gerakan mouse/usapan di atas hitbox perut
+    hitbox.addEventListener('mousemove', () => {
+        intensity += 4; // Intensitas naik setiap mouse bergerak
+        if (intensity > maxIntensity) intensity = maxIntensity;
+        updateGame();
+    });
+
+    // Mendeteksi sentuhan untuk layar HP (Touchscreen)
+    hitbox.addEventListener('touchmove', (e) => {
+        e.preventDefault(); // Mencegah layar ikut ter-scroll
+        intensity += 4;
+        if (intensity > maxIntensity) intensity = maxIntensity;
+        updateGame();
+    });
+
+    // Sistem "Cooldown" - Intensitas akan turun pelan-pelan jika dibiarkan
+    setInterval(() => {
+        if (intensity > 0) {
+            intensity -= 2;
+            if (intensity < 0) intensity = 0;
+            updateGame();
+        }
+    }, 100);
+
+    // Fungsi utama untuk memperbarui tampilan
+    function updateGame() {
+        tickleMeter.value = intensity;
+
+        // Jika intensitas melewati ambang batas (Threshold)
+        if (intensity >= threshold && !isReacting) {
+            imgElement.src = imgTickled; // Ganti ke gambar bereaksi
+            statusText.innerText = "Tidak Kuat (Tertawa)!";
+            statusText.style.color = "#ff4444";
+            isReacting = true;
+        } 
+        // Jika intensitas turun lagi ke kondisi aman
+        else if (intensity < threshold && isReacting) {
+            imgElement.src = imgNormal; // Kembali ke gambar normal
+            statusText.innerText = "Bertahan";
+            statusText.style.color = "white";
+            isReacting = false;
+        }
+    }
+</script>
+
+</body>
+</html>
